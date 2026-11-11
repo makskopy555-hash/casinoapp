@@ -1,0 +1,101 @@
+<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+body{font-family:system-ui,sans-serif;background:radial-gradient(circle at 20% 0,#2a1250,#0a0a14 55%) fixed;color:#fff;min-height:100vh;padding:12px 12px 90px}
+.card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:14px;margin-bottom:12px;backdrop-filter:blur(10px)}
+.top{display:flex;justify-content:space-between;align-items:center}
+.bal{font-size:28px;font-weight:800;background:linear-gradient(90deg,#7cf,#c6f);-webkit-background-clip:text;color:transparent}
+.sw{display:flex;background:#0006;border-radius:12px;padding:3px}
+.sw b{padding:7px 13px;border-radius:9px;font-size:14px}
+.sw b.on{background:linear-gradient(135deg,#7c3aed,#06b6d4)}
+input{width:100%;background:#0007;border:1px solid #fff2;border-radius:12px;padding:12px;color:#fff;font-size:16px}
+.row{display:flex;gap:8px;margin-top:8px}
+button{flex:1;border:0;border-radius:14px;padding:14px;font-weight:700;font-size:16px;color:#fff;background:linear-gradient(135deg,#7c3aed,#06b6d4);box-shadow:0 4px 20px #7c3aed66}
+button.g{background:#fff1;box-shadow:none;padding:10px}
+button.r{background:linear-gradient(135deg,#f59e0b,#ef4444);box-shadow:0 4px 20px #ef444466}
+canvas{width:100%;border-radius:14px;background:#0004;display:block;margin-bottom:10px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;gap:6px;background:#0a0a14ee;border-top:1px solid #fff1;padding:8px 8px 16px}
+nav b{flex:1;text-align:center;font-size:14px;padding:10px;border-radius:12px;opacity:.6}
+nav b.on{opacity:1;background:#fff1}
+.s{display:none}.s.on{display:block}
+.msg{text-align:center;min-height:24px;margin-top:10px;font-weight:700}
+#wheel{width:210px;height:210px;border-radius:50%;margin:14px auto;position:relative;border:4px solid #fff2;box-shadow:0 0 30px #7c3aed55}
+#arrow{position:absolute;inset:0;transition:transform 3s cubic-bezier(.1,.7,.1,1)}
+#arrow:after{content:"";position:absolute;left:50%;top:-6px;margin-left:-9px;border:9px solid transparent;border-top:18px solid #fff}
+#ch{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800}
+h3{margin-bottom:10px}
+</style></head><body>
+<div class="card top"><div><div style="opacity:.6;font-size:12px">Баланс</div><div class="bal" id="bal">0</div></div>
+<div class="sw"><b id="c1" class="on" onclick="setCur('rub')">₽</b><b id="c2" onclick="setCur('stars')">⭐</b></div></div>
+<div class="card"><div style="opacity:.6;font-size:12px;margin-bottom:6px">Ставка</div>
+<input id="bet" type="number" value="5" inputmode="decimal" oninput="uch()">
+<div class="row"><button class="g" onclick="mul(.5)">½</button><button class="g" onclick="mul(2)">×2</button><button class="g" onclick="$('bet').value=B[cur];uch()">MAX</button></div></div>
+
+<div class="s on" id="plinko"><div class="card"><canvas id="pc"></canvas><button style="width:100%" onclick="plinko()">Бросить шар</button><div class="msg" id="pm"></div></div></div>
+<div class="s" id="race"><div class="card"><canvas id="rc"></canvas><button id="rb" style="width:100%" onclick="rbtn()">Взлёт ✈️</button><div class="msg" id="rm"></div></div></div>
+<div class="s" id="up"><div class="card"><h3>Апгрейдер</h3><div style="opacity:.6;font-size:12px;margin-bottom:6px">Апгрейд ставки до (x2…x50)</div>
+<input id="to" type="number" value="10" inputmode="decimal" oninput="uch()">
+<div id="wheel"><div id="arrow"></div><div id="ch">50%</div></div>
+<button style="width:100%" onclick="upg()">Апгрейднуть</button><div class="msg" id="um"></div></div></div>
+
+<div class="card" id="adm" style="display:none"><h3>👑 Админ-панель</h3>
+<input id="au" placeholder="@username"><div class="row"><input id="aa" type="number" placeholder="Сумма (в выбранной валюте)"><button onclick="give()" style="flex:.6">Выдать</button></div></div>
+
+<nav><b data-s="plinko" class="on" onclick="show('plinko')">🔵 Плинко</b><b data-s="race" onclick="show('race')">✈️ Рейс</b><b data-s="up" onclick="show('up')">⚡ Апгрейд</b></nav>
+<script>
+const tg=Telegram.WebApp;tg.ready();tg.expand();
+let cur='rub',B={rub:0,stars:0},busy=false,R=null,trail=[];
+const $=i=>document.getElementById(i),sym=()=>cur=='rub'?'₽':'⭐',sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function show(s){document.querySelectorAll('.s').forEach(e=>e.classList.toggle('on',e.id==s));document.querySelectorAll('nav b').forEach(e=>e.classList.toggle('on',e.dataset.s==s))}
+function draw(){$('bal').textContent=B[cur].toFixed(2)+' '+sym()}
+function setCur(c){cur=c;$('c1').className=c=='rub'?'on':'';$('c2').className=c=='stars'?'on':'';draw()}
+function sync(j){B={rub:j.rub,stars:j.stars};$('adm').style.display=j.admin?'block':'none';draw()}
+async function api(p,d={}){const r=await fetch(p,{method:'POST',headers:{'X-Init':tg.initData,'Content-Type':'application/json'},body:JSON.stringify({cur,bet:+$('bet').value,...d})});const j=await r.json();if(j.err){tg.showAlert(j.err);sync(j);throw j.err}return j}
+function mul(k){$('bet').value=Math.max(.1,+(($('bet').value*k).toFixed(2)));uch()}
+function hap(t){try{tg.HapticFeedback.notificationOccurred(t)}catch(e){}}
+
+// ПЛИНКО
+const M=[13,3,1.3,.7,.4,.7,1.3,3,13],pc=$('pc'),px=pc.getContext('2d');pc.width=320;pc.height=330;
+function pdraw(bx,by,hit){px.clearRect(0,0,320,330);px.fillStyle='#fff';
+for(let i=0;i<8;i++)for(let j=0;j<=i;j++){px.beginPath();px.arc(160+(j-i/2)*34,40+i*30,3,0,7);px.fill()}
+M.forEach((m,k)=>{px.fillStyle=k==hit?'#22d3ee':m>=3?'#a855f7':m>=1?'#6366f1':'#334155';px.fillRect(160+(k-4)*34-15,292,30,26);px.fillStyle='#fff';px.font='11px sans-serif';px.textAlign='center';px.fillText(m+'x',160+(k-4)*34,309)});
+if(bx!=null){px.fillStyle='#f0abfc';px.shadowColor='#e879f9';px.shadowBlur=14;px.beginPath();px.arc(bx,by,7,0,7);px.fill();px.shadowBlur=0}}
+pdraw();
+async function plinko(){if(busy)return;busy=true;try{const j=await api('/api/plinko');$('pm').textContent='';
+let x=160,y=25;for(let i=0;i<8;i++){const nx=x+(j.path[i]?17:-17),ny=i<7?28+(i+1)*30:303;
+for(let t=1;t<=12;t++){pdraw(x+(nx-x)*t/12,y+(ny-y)*t/12-Math.sin(t/12*Math.PI)*8);await sleep(16)}x=nx;y=ny}
+pdraw(x,y,j.path.reduce((a,b)=>a+b));sync(j);hap(j.win>+$('bet').value?'success':'warning');
+$('pm').innerHTML=`x${j.mult} → ${j.win>0?'+':''}${j.win.toFixed(2)} ${sym()}`}catch(e){}busy=false}
+
+// РЕЙС
+const rc=$('rc'),rx=rc.getContext('2d');rc.width=320;rc.height=220;
+function rdraw(m,st){rx.clearRect(0,0,320,220);const g=rx.createLinearGradient(0,0,0,220);g.addColorStop(0,'#1e1b4b');g.addColorStop(1,'#0e7490');rx.fillStyle=g;rx.fillRect(0,0,320,220);
+const k=1-1/m,x=30+240*k,y=st=='crash'?200:170-120*k;if(!st||st=='fly')trail.push([x,y]);
+rx.strokeStyle='#e879f9';rx.lineWidth=3;rx.beginPath();trail.forEach((p,i)=>i?rx.lineTo(...p):rx.moveTo(...p));rx.stroke();
+rx.fillStyle='#0891b2cc';rx.fillRect(0,200,320,20);
+rx.save();rx.translate(x,y);rx.rotate(st=='crash'?.9:-.35);rx.font='34px serif';rx.fillText('✈️',-17,12);rx.restore();
+rx.textAlign='center';rx.font='bold 44px sans-serif';rx.fillStyle=st=='crash'?'#ef4444':st=='land'?'#22c55e':'#fff';rx.fillText(m.toFixed(2)+'x',160,70);
+if(st=='crash'){rx.font='bold 18px sans-serif';rx.fillText('💥 Упал в воду',160,100)}}
+rdraw(1);
+function loop(){if(!R)return;rdraw(Math.exp(.15*(Date.now()-R.t)/1000));requestAnimationFrame(loop)}
+function end(j,win){R=null;rdraw(j.m,win?'land':'crash');sync(j);hap(win?'success':'error');$('rb').textContent='Взлёт ✈️';$('rb').className='';
+$('rm').textContent=win?`✅ Посадка на x${j.m.toFixed(2)}: +${j.win.toFixed(2)} ${sym()}`:`💥 Упал на x${j.m.toFixed(2)}`}
+async function rbtn(){if(busy)return;busy=true;try{
+if(R){const j=await api('/api/race/land');end(j,j.state=='land')}
+else{const j=await api('/api/race/start');sync(j);trail=[];$('rm').textContent='';R={t:Date.now()};$('rb').textContent='Сесть!';$('rb').className='r';loop()}}catch(e){}busy=false}
+setInterval(async()=>{if(!R||R.chk)return;R.chk=1;try{const j=await api('/api/race/tick');if(R&&j.state!='fly')end(j,false)}catch(e){}if(R)R.chk=0},300);
+
+// АПГРЕЙДЕР
+function uch(){const t=+$('to').value,a=+$('bet').value,c=t>a&&a>0?a/t*100:0;$('ch').textContent=c?c.toFixed(1)+'%':'—';$('wheel').style.background=`conic-gradient(#22c55e ${c*3.6}deg,#ef4444 0)`}
+async function upg(){if(busy)return;busy=true;try{const j=await api('/api/upgrade',{to:+$('to').value});$('um').textContent='';
+const ar=$('arrow'),c=j.chance*3.6,ang=j.ok?c*.05+Math.random()*c*.9:c+(360-c)*.05+Math.random()*(360-c)*.9;
+ar.style.transition='none';ar.style.transform='rotate(0)';ar.offsetWidth;ar.style.transition='';ar.style.transform=`rotate(${1800+ang}deg)`;await sleep(3200);
+sync(j);hap(j.ok?'success':'error');$('um').textContent=j.ok?`✅ Успех! +${(+$('to').value).toFixed(2)} ${sym()}`:'❌ Не повезло'}catch(e){}busy=false}
+uch();
+
+// АДМИН
+async function give(){try{await api('/api/give',{user:$('au').value,amount:+$('aa').value});tg.showAlert('Выдано ✅')}catch(e){}}
+api('/api/me').then(sync);
+</script></body></html>
