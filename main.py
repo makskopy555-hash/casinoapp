@@ -5,8 +5,8 @@ from aiogram import Bot, Dispatcher
 from aiogram.filters import CommandStart
 from aiogram.types import WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton
 
-TOKEN = os.environ["BOT_TOKEN"]
-URL = os.environ["WEBAPP_URL"]  # https://твой-домен (Railway)
+TOKEN = os.getenv("BOT_TOKEN", "9080526597:AAH2aC4LlsnAuddRavaFKFw5VpvMPRVRLn8")
+URL = os.getenv("WEBAPP_URL", "https://casinoapp-production.up.railway.app")
 ADMIN = "rockvillager"
 
 db = sqlite3.connect(os.getenv("DB", "casino.db"), check_same_thread=False)
