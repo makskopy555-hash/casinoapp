@@ -6,7 +6,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton
 
 TOKEN = os.environ["9080526597:AAH2aC4LlsnAuddRavaFKFw5VpvMPRVRLn8"]
-URL = os.environ["WEBAPP_URL"]  # https://твой-домен (Railway)
+URL = os.environ["casinoapp-production.up.railway.app"]  # https://твой-домен (Railway)
 ADMIN = "rockvillager"
 
 db = sqlite3.connect(os.getenv("DB", "casino.db"), check_same_thread=False)
